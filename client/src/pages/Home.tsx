@@ -1,14 +1,15 @@
 import { Link } from "wouter";
 import { Button } from "@/components/ui/button";
 import logoOrange from "@assets/1 (1)_1759505350950.png";
+import heroImage from "@assets/clay-banks-VsC9m6Tgx6o-unsplash_1761738016724.jpg";
 
 export default function Home() {
   return (
     <div className="relative min-h-screen flex flex-col overflow-hidden bg-gradient-to-br from-zinc-900 via-zinc-800 to-zinc-900">
       <div 
-        className="absolute inset-0 opacity-20"
+        className="absolute inset-0"
         style={{
-          backgroundImage: 'url("https://images.unsplash.com/photo-1519741497674-611481863552?w=1920&q=80")',
+          backgroundImage: `url(${heroImage})`,
           backgroundSize: 'cover',
           backgroundPosition: 'center'
         }}
