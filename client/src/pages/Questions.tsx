@@ -3,8 +3,9 @@ import { Link } from "wouter";
 import { Button } from "@/components/ui/button";
 import { ArrowLeft, ChevronLeft, ChevronRight } from "lucide-react";
 import { useQuery } from "@tanstack/react-query";
-import { supabase } from "@/lib/supabase";
+import { supabase, isSupabaseConfigured } from "@/lib/supabase";
 import type { IceBreakingQuestion } from "@shared/schema";
+import { iceBreakingQuestions } from "@/data/questions";
 import logoWhite from "@assets/2 (1)_1759505350960.png";
 
 export default function Questions() {
@@ -15,9 +16,12 @@ export default function Questions() {
   const [offset, setOffset] = useState(0);
   const containerRef = useRef<HTMLDivElement>(null);
 
-  const { data: questions, isLoading } = useQuery<IceBreakingQuestion[]>({
+  const { data: supabaseQuestions, isLoading } = useQuery<IceBreakingQuestion[]>({
     queryKey: ['/api/ice-breaking-questions'],
     queryFn: async () => {
+      if (!supabase) {
+        return [];
+      }
       const { data, error } = await supabase
         .from('ice_breaking_questions')
         .select('*')
@@ -26,8 +30,13 @@ export default function Questions() {
 
       if (error) throw error;
       return data;
-    }
+    },
+    enabled: isSupabaseConfigured()
   });
+
+  const questions = isSupabaseConfigured() && supabaseQuestions 
+    ? supabaseQuestions.map(q => q.question)
+    : iceBreakingQuestions;
 
   const minSwipeDistance = 50;
 
@@ -84,21 +93,11 @@ export default function Questions() {
     return () => window.removeEventListener("keydown", handleKeyDown);
   }, [currentIndex]);
 
-  if (isLoading) {
+  if (isSupabaseConfigured() && isLoading) {
     return (
       <div className="min-h-screen bg-gradient-to-br from-zinc-900 via-zinc-800 to-zinc-900 flex items-center justify-center">
         <div className="text-white text-xl" data-testid="text-loading">
           Loading questions...
-        </div>
-      </div>
-    );
-  }
-
-  if (!questions || questions.length === 0) {
-    return (
-      <div className="min-h-screen bg-gradient-to-br from-zinc-900 via-zinc-800 to-zinc-900 flex items-center justify-center">
-        <div className="text-white text-xl text-center p-6" data-testid="text-no-questions">
-          No questions available. Please check the Supabase setup.
         </div>
       </div>
     );
@@ -147,7 +146,7 @@ export default function Questions() {
                 className="text-2xl md:text-3xl lg:text-4xl text-white text-center font-light leading-relaxed"
                 data-testid="text-question"
               >
-                {questions[currentIndex].question}
+                {questions[currentIndex]}
               </p>
             </div>
           </div>
