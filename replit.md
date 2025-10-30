@@ -41,9 +41,10 @@ Preferred communication style: Simple, everyday language.
 
 **Key Pages:**
 1. **Home (/)**: Full-viewport hero layout with background image, logo, and two CTA buttons
-2. **Auth (/auth)**: Centered card layout for authentication (sign up/log in)
-3. **Socials (/socials)**: Grid of tiles for different social features (ice-breaking questions, events)
-4. **Questions (/questions)**: Swipeable carousel of ice-breaking questions with touch gesture support
+2. **Auth (/auth)**: Centered card layout for authentication (sign up/log in), redirects to Dashboard
+3. **Socials (/socials)**: Grid of tiles for Singles Socials features (ice-breaking questions, events)
+4. **Dashboard (/dashboard)**: 4-tile grid for The Date Alchemy authenticated features, identical layout to Socials
+5. **Questions (/questions)**: Swipeable carousel of ice-breaking questions with touch gesture support, fetches from Supabase
 
 ### Backend Architecture
 
@@ -71,24 +72,37 @@ Preferred communication style: Simple, everyday language.
 
 ### Data Storage
 
-**Database Schema (Planned):**
-- **Drizzle ORM** configured for PostgreSQL
-- **Neon Database** serverless PostgreSQL as the target platform
-- Current schema defines a `users` table with:
+**Supabase Integration (Active):**
+- **Supabase** PostgreSQL database for production data storage
+- **@supabase/supabase-js** client library for database access
+- Connected via environment variables: `VITE_SUPABASE_URL` and `VITE_SUPABASE_ANON_KEY`
+- Active table: `ice_breaking_questions` with 107 questions
   - `id`: UUID primary key (auto-generated)
-  - `username`: Unique text field
-  - `password`: Text field for hashed passwords
+  - `question`: Text field for the question content
+  - `is_active`: Boolean flag to enable/disable questions
+  - `created_at`: Timestamp for record creation
+- Row Level Security (RLS) enabled with public read access for active questions
+
+**Database Schema:**
+- **Drizzle ORM** configured for PostgreSQL schema definitions
+- Current schema defines:
+  - `users` table (for future authentication):
+    - `id`: UUID primary key (auto-generated)
+    - `username`: Unique text field
+    - `password`: Text field for hashed passwords
+  - `ice_breaking_questions` table (active in Supabase):
+    - `id`: UUID primary key (auto-generated)
+    - `question`: Text field
+    - `is_active`: Boolean (default: true)
+    - `created_at`: Timestamp (default: now)
 - Schema validation using **Drizzle-Zod** for runtime type checking
 
-**Migration Strategy:**
-- Drizzle Kit configured for schema migrations
-- Migrations stored in `./migrations` directory
-- Push-based deployment with `db:push` command
-
 **Current State:**
-- Application currently uses in-memory storage
-- Database infrastructure prepared but not yet connected
-- Schema and ORM configuration ready for activation
+- Supabase database actively serving ice breaking questions
+- Questions page fetches real-time data from Supabase
+- Both Singles Socials and Dashboard share the same question data source
+- Local development uses in-memory storage for users
+- Authentication system UI ready, backend implementation pending
 
 ### External Dependencies
 
@@ -124,8 +138,10 @@ Preferred communication style: Simple, everyday language.
   - Custom error handling for 401 responses
 
 **Database & ORM:**
-- **Drizzle ORM v0.39+** for type-safe database operations
-- **@neondatabase/serverless** for PostgreSQL connection pooling
+- **Supabase** serverless PostgreSQL for production database
+- **@supabase/supabase-js v2+** for database client operations
+- **Drizzle ORM v0.39+** for type-safe schema definitions
+- **@neondatabase/serverless** for PostgreSQL connection pooling (configured)
 - **Drizzle Kit** for migrations and schema management
 
 **Development Tools:**
@@ -147,8 +163,17 @@ Preferred communication style: Simple, everyday language.
 - Cache-first strategy for static assets
 - Network-first strategy for dynamic content
 
+**Deployment:**
+- **Frontend**: Static deployment to Netlify at `app.thedatealchemy.com`
+- **Build Configuration**: `netlify.toml` with `vite build` command
+- **Publish Directory**: `dist/public`
+- **SPA Routing**: `_redirects` file for client-side routing support
+- **Backend**: Replit-hosted Express server (for future API features)
+
+**Integrated Services:**
+- **Supabase**: Production database for ice breaking questions (active)
+
 **Not Yet Integrated:**
-- PostgreSQL database (configured but connection pending)
-- Authentication system (UI ready, backend implementation pending)
+- Full authentication system (UI ready, backend implementation pending)
 - Session management (dependencies installed but not implemented)
-- API routes (framework ready, endpoints to be defined)
+- Additional API routes (framework ready, endpoints to be defined)

@@ -2,7 +2,9 @@ import { useState, useRef, useEffect } from "react";
 import { Link } from "wouter";
 import { Button } from "@/components/ui/button";
 import { ArrowLeft, ChevronLeft, ChevronRight } from "lucide-react";
-import { iceBreakingQuestions } from "@/data/questions";
+import { useQuery } from "@tanstack/react-query";
+import { supabase } from "@/lib/supabase";
+import type { IceBreakingQuestion } from "@shared/schema";
 import logoWhite from "@assets/2 (1)_1759505350960.png";
 
 export default function Questions() {
@@ -12,6 +14,20 @@ export default function Questions() {
   const [isDragging, setIsDragging] = useState(false);
   const [offset, setOffset] = useState(0);
   const containerRef = useRef<HTMLDivElement>(null);
+
+  const { data: questions, isLoading } = useQuery<IceBreakingQuestion[]>({
+    queryKey: ['/api/ice-breaking-questions'],
+    queryFn: async () => {
+      const { data, error } = await supabase
+        .from('ice_breaking_questions')
+        .select('*')
+        .eq('is_active', true)
+        .order('created_at', { ascending: true });
+
+      if (error) throw error;
+      return data;
+    }
+  });
 
   const minSwipeDistance = 50;
 
@@ -35,7 +51,7 @@ export default function Questions() {
     const isLeftSwipe = distance > minSwipeDistance;
     const isRightSwipe = distance < -minSwipeDistance;
 
-    if (isLeftSwipe && currentIndex < iceBreakingQuestions.length - 1) {
+    if (isLeftSwipe && questions && currentIndex < questions.length - 1) {
       setCurrentIndex(currentIndex + 1);
     } else if (isRightSwipe && currentIndex > 0) {
       setCurrentIndex(currentIndex - 1);
@@ -53,7 +69,7 @@ export default function Questions() {
   };
 
   const goToNext = () => {
-    if (currentIndex < iceBreakingQuestions.length - 1) {
+    if (questions && currentIndex < questions.length - 1) {
       setCurrentIndex(currentIndex + 1);
     }
   };
@@ -67,6 +83,26 @@ export default function Questions() {
     window.addEventListener("keydown", handleKeyDown);
     return () => window.removeEventListener("keydown", handleKeyDown);
   }, [currentIndex]);
+
+  if (isLoading) {
+    return (
+      <div className="min-h-screen bg-gradient-to-br from-zinc-900 via-zinc-800 to-zinc-900 flex items-center justify-center">
+        <div className="text-white text-xl" data-testid="text-loading">
+          Loading questions...
+        </div>
+      </div>
+    );
+  }
+
+  if (!questions || questions.length === 0) {
+    return (
+      <div className="min-h-screen bg-gradient-to-br from-zinc-900 via-zinc-800 to-zinc-900 flex items-center justify-center">
+        <div className="text-white text-xl text-center p-6" data-testid="text-no-questions">
+          No questions available. Please check the Supabase setup.
+        </div>
+      </div>
+    );
+  }
 
   return (
     <div className="min-h-screen bg-gradient-to-br from-zinc-900 via-zinc-800 to-zinc-900 flex flex-col">
@@ -111,7 +147,7 @@ export default function Questions() {
                 className="text-2xl md:text-3xl lg:text-4xl text-white text-center font-light leading-relaxed"
                 data-testid="text-question"
               >
-                {iceBreakingQuestions[currentIndex]}
+                {questions[currentIndex].question}
               </p>
             </div>
           </div>
@@ -130,14 +166,14 @@ export default function Questions() {
           </Button>
 
           <div className="text-white/80 text-sm font-medium min-w-[100px] text-center" data-testid="text-counter">
-            {currentIndex + 1} / {iceBreakingQuestions.length}
+            {currentIndex + 1} / {questions.length}
           </div>
 
           <Button
             variant="ghost"
             size="icon"
             onClick={goToNext}
-            disabled={currentIndex === iceBreakingQuestions.length - 1}
+            disabled={currentIndex === questions.length - 1}
             className="text-white hover:bg-white/10 disabled:opacity-30 h-12 w-12"
             data-testid="button-next"
           >

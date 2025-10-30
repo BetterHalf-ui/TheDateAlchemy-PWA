@@ -1,5 +1,5 @@
 import { useState } from "react";
-import { Link } from "wouter";
+import { Link, useLocation } from "wouter";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -10,13 +10,16 @@ import logoOrange from "@assets/1 (1)_1759505350950.png";
 export default function Auth() {
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
+  const [, setLocation] = useLocation();
 
   const handleSignUp = () => {
     console.log("Sign Up triggered", { email, password });
+    setLocation("/dashboard");
   };
 
   const handleLogIn = () => {
     console.log("Log In triggered", { email, password });
+    setLocation("/dashboard");
   };
 
   return (

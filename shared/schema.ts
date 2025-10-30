@@ -1,5 +1,5 @@
 import { sql } from "drizzle-orm";
-import { pgTable, text, varchar } from "drizzle-orm/pg-core";
+import { pgTable, text, varchar, boolean, timestamp, uuid } from "drizzle-orm/pg-core";
 import { createInsertSchema } from "drizzle-zod";
 import { z } from "zod";
 
@@ -16,3 +16,18 @@ export const insertUserSchema = createInsertSchema(users).pick({
 
 export type InsertUser = z.infer<typeof insertUserSchema>;
 export type User = typeof users.$inferSelect;
+
+export const iceBreakingQuestions = pgTable("ice_breaking_questions", {
+  id: uuid("id").primaryKey().defaultRandom(),
+  question: text("question").notNull(),
+  isActive: boolean("is_active").notNull().default(true),
+  createdAt: timestamp("created_at").notNull().defaultNow(),
+});
+
+export const insertIceBreakingQuestionSchema = createInsertSchema(iceBreakingQuestions).omit({
+  id: true,
+  createdAt: true,
+});
+
+export type InsertIceBreakingQuestion = z.infer<typeof insertIceBreakingQuestionSchema>;
+export type IceBreakingQuestion = typeof iceBreakingQuestions.$inferSelect;
