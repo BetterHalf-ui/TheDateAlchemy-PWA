@@ -1,0 +1,51 @@
+Summarize the issue and suggest fixes for the following lint item: Title: Auth RLS Initialization Plan Entity: public.user_profiles Schema: public Issue Details: Table public.user_profiles has a row level security policy Users can read own profile that re-evaluates current_setting() or auth.() for each row. This produces suboptimal query performance at scale. Resolve the issue by replacing auth.<function>() with (select auth.<function>()). See docs for more info. Description: Detects if calls to current_setting() and auth.<function>() in RLS policies are being unnecessarily re-evaluated for each row
+
+
+
+
+Reasoned
+Summary of the issue
+The RLS policy "Users can read own profile" on table public.user_profiles calls current_setting() or auth.<function>() directly inside the policy expression. When a policy calls these functions directly (e.g., auth.uid() or current_setting('jwt.claims.tenant_id')) Postgres may re-evaluate them for every row during scans, causing poor query performance at scale.
+
+The lint recommends replacing direct calls with scalar subqueries that return the function result once per statement, e.g.:
+
+Bad: USING (auth.uid() = user_id)
+Good: USING ((SELECT auth.uid()) = user_id)
+This change ensures the function is computed once (per statement) rather than repeatedly per row, improving performance and reducing CPU.
+
+Why it matters (concise)
+RLS policies are evaluated for each row considered during a query.
+Direct calls to volatile or context-dependent functions inside policy expressions can be re-invoked per row, increasing cost for large tables.
+Wrapping the call in a scalar subquery lets Postgres treat it as a stable value for the statement, preventing repeated computation.
+Suggested fixes
+Update SELECT (USING) clauses:
+
+Find policies on public.user_profiles that use auth.uid() or current_setting(...) in their USING expressions.
+Replace direct calls with scalar subqueries:
+auth.uid() -> (SELECT auth.uid())
+current_setting('some.key') -> (SELECT current_setting('some.key'))
+Example:
+Before: CREATE POLICY "Users can read own profile" ON public.user_profiles FOR SELECT TO authenticated USING (auth.uid() = id);
+After: CREATE POLICY "Users can read own profile" ON public.user_profiles FOR SELECT TO authenticated USING ((SELECT auth.uid()) = id);
+Update INSERT/UPDATE (WITH CHECK) expressions similarly:
+
+Replace direct calls in WITH CHECK with (SELECT ...) forms.
+Validate and test:
+
+Run representative queries as an authenticated user and compare EXPLAIN ANALYZE before/after to confirm fewer function calls and better runtime.
+Verify policy logic still enforces the same access.
+Additional best-practice recommendations:
+
+Ensure columns referenced in the policy (e.g., user_id or id) are indexed to help plan efficiency.
+If you need complex multi-table checks (membership, tenant resolution), consider a STABLE security-definer helper function that returns the user/tenant once per session and revoke EXECUTE from public roles.
+Keep the TO clause specific (e.g., TO authenticated) rather than leaving policies broad.
+Quick replacement examples
+auth.uid():
+Change auth.uid() = user_id to (SELECT auth.uid()) = user_id
+current_setting('jwt.claims.tenant_id'):
+Change current_setting('jwt.claims.tenant_id')::uuid = tenant_id to (SELECT current_setting('jwt.claims.tenant_id'))::uuid = tenant_id
+Next steps I can take for you
+I can list the current policies on public.user_profiles and produce the exact ALTER / DROP & CREATE POLICY statements needed to update them.
+I can run EXPLAIN ANALYZE on a sample query before and after changes (you must confirm execution). Which would you like me to do?
+
+
