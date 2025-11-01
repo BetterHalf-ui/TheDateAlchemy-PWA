@@ -47,35 +47,84 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 
   // Initialize auth state on mount
   useEffect(() => {
-    if (!supabase) {
-      setLoading(false);
-      return;
+    let mounted = true;
+    let timeoutId: NodeJS.Timeout;
+
+    const initAuth = async () => {
+      if (!supabase) {
+        console.log('No Supabase client, skipping auth');
+        if (mounted) setLoading(false);
+        return;
+      }
+
+      try {
+        console.log('Initializing auth...');
+        
+        // Set a safety timeout - if auth doesn't complete in 5 seconds, stop loading
+        timeoutId = setTimeout(() => {
+          console.warn('Auth initialization timeout - continuing anyway');
+          if (mounted) setLoading(false);
+        }, 5000);
+
+        // Get initial session with timeout protection
+        const { data: { session }, error } = await supabase.auth.getSession();
+        
+        if (error) {
+          console.error('Error getting session:', error);
+        } else {
+          console.log('Session retrieved:', !!session);
+          if (mounted) {
+            setUser(session?.user ?? null);
+            if (session?.user) {
+              const userProfile = await fetchProfile(session.user.id);
+              if (mounted) setProfile(userProfile);
+            }
+          }
+        }
+      } catch (error) {
+        console.error('Auth initialization error:', error);
+      } finally {
+        clearTimeout(timeoutId);
+        if (mounted) {
+          console.log('Auth initialization complete');
+          setLoading(false);
+        }
+      }
+    };
+
+    initAuth();
+
+    // Listen for auth changes (only if supabase exists)
+    let subscription: any;
+    if (supabase) {
+      try {
+        const { data: { subscription: sub } } = supabase.auth.onAuthStateChange(
+          async (_event, session) => {
+            console.log('Auth state changed:', _event);
+            if (mounted) {
+              setUser(session?.user ?? null);
+              if (session?.user) {
+                const userProfile = await fetchProfile(session.user.id);
+                if (mounted) setProfile(userProfile);
+              } else {
+                setProfile(null);
+              }
+            }
+          }
+        );
+        subscription = sub;
+      } catch (error) {
+        console.error('Error setting up auth listener:', error);
+      }
     }
 
-    // Get initial session
-    supabase.auth.getSession().then(({ data: { session } }) => {
-      setUser(session?.user ?? null);
-      if (session?.user) {
-        fetchProfile(session.user.id).then(setProfile);
+    return () => {
+      mounted = false;
+      clearTimeout(timeoutId);
+      if (subscription) {
+        subscription.unsubscribe();
       }
-      setLoading(false);
-    });
-
-    // Listen for auth changes
-    const {
-      data: { subscription },
-    } = supabase.auth.onAuthStateChange(async (_event, session) => {
-      setUser(session?.user ?? null);
-      if (session?.user) {
-        const userProfile = await fetchProfile(session.user.id);
-        setProfile(userProfile);
-      } else {
-        setProfile(null);
-      }
-      setLoading(false);
-    });
-
-    return () => subscription.unsubscribe();
+    };
   }, []);
 
   const signUp = async (email: string, password: string) => {
