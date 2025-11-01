@@ -10,6 +10,7 @@ import Auth from "@/pages/Auth";
 import Socials from "@/pages/Socials";
 import Questions from "@/pages/Questions";
 import Dashboard from "@/pages/Dashboard";
+import DiagnosticTest from "@/pages/DiagnosticTest";
 import NotFound from "@/pages/not-found";
 
 function Router() {
@@ -19,6 +20,7 @@ function Router() {
       <Route path="/auth" component={Auth} />
       <Route path="/socials" component={Socials} />
       <Route path="/questions" component={Questions} />
+      <Route path="/test" component={DiagnosticTest} />
       <Route path="/dashboard">
         <ProtectedRoute>
           <Dashboard />
