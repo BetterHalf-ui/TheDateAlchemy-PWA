@@ -2,7 +2,6 @@ import { useState, useRef, useEffect } from "react";
 import { Link } from "wouter";
 import { Button } from "@/components/ui/button";
 import { ArrowLeft, ChevronLeft, ChevronRight } from "lucide-react";
-import { supabase, isSupabaseConfigured } from "@/lib/supabase";
 import { iceBreakingQuestions } from "@/data/questions";
 import logoWhite from "@assets/2 (1)_1759505350960.png";
 
@@ -20,7 +19,10 @@ export default function Questions() {
 
   useEffect(() => {
     const fetchQuestions = async () => {
-      if (!isSupabaseConfigured() || !supabase) {
+      const supabaseUrl = import.meta.env.VITE_SUPABASE_URL;
+      const supabaseKey = import.meta.env.VITE_SUPABASE_ANON_KEY;
+
+      if (!supabaseUrl || !supabaseKey) {
         console.log('Supabase not configured, using fallback questions');
         setQuestions(iceBreakingQuestions);
         return;
@@ -29,46 +31,39 @@ export default function Questions() {
       setIsLoading(true);
       setError(null);
       
-      const timeoutId = setTimeout(() => {
-        console.warn('⚠️ Supabase query timeout after 10 seconds');
-        setError('Request timed out. Using offline questions.');
-        setQuestions(iceBreakingQuestions);
-        setIsLoading(false);
-      }, 10000);
-      
       try {
-        console.log('📡 Making Supabase request...');
+        console.log('📡 Fetching questions from Supabase...');
         const startTime = Date.now();
         
-        const { data, error } = await supabase
-          .from('ice_breaking_questions')
-          .select('*')
-          .eq('is_active', true)
-          .order('created_at', { ascending: true });
+        const url = `${supabaseUrl}/rest/v1/ice_breaking_questions?is_active=eq.true&order=created_at.asc`;
+        const response = await fetch(url, {
+          method: 'GET',
+          headers: {
+            'apikey': supabaseKey,
+            'Authorization': `Bearer ${supabaseKey}`,
+          },
+        });
 
-        clearTimeout(timeoutId);
         const duration = Date.now() - startTime;
-        console.log(`⏱️ Supabase request completed in ${duration}ms`);
+        console.log(`⏱️ Request completed in ${duration}ms`);
 
-        if (error) {
-          console.error('❌ Supabase error:', error);
+        if (!response.ok) {
+          console.error(`❌ HTTP ${response.status}: ${response.statusText}`);
           setError('Unable to load questions from database. Using offline questions.');
           setQuestions(iceBreakingQuestions);
-        } else if (!data || data.length === 0) {
-          console.warn('⚠️ No questions found in database');
-          setError('No questions available. Using offline questions.');
-          setQuestions(iceBreakingQuestions);
         } else {
-          console.log(`✅ Loaded ${data.length} questions from Supabase`);
-          setQuestions(data.map(q => q.question));
+          const data = await response.json();
+          if (!data || data.length === 0) {
+            console.warn('⚠️ No questions found in database');
+            setError('No questions available. Using offline questions.');
+            setQuestions(iceBreakingQuestions);
+          } else {
+            console.log(`✅ Loaded ${data.length} questions from Supabase`);
+            setQuestions(data.map((q: any) => q.question));
+          }
         }
       } catch (err) {
-        clearTimeout(timeoutId);
         console.error('❌ Failed to fetch questions:', err);
-        console.error('Error details:', {
-          message: err instanceof Error ? err.message : 'Unknown error',
-          stack: err instanceof Error ? err.stack : undefined,
-        });
         setError('Connection error. Using offline questions.');
         setQuestions(iceBreakingQuestions);
       } finally {
@@ -134,7 +129,7 @@ export default function Questions() {
     return () => window.removeEventListener("keydown", handleKeyDown);
   }, [currentIndex]);
 
-  if (isSupabaseConfigured() && isLoading) {
+  if (isLoading) {
     return (
       <div className="min-h-screen bg-gradient-to-br from-zinc-900 via-zinc-800 to-zinc-900 flex items-center justify-center">
         <div className="text-white text-xl" data-testid="text-loading">

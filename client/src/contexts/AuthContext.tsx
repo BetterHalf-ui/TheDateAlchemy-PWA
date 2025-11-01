@@ -1,6 +1,5 @@
 import { createContext, useContext, useEffect, useState, ReactNode } from "react";
 import { User as SupabaseUser } from "@supabase/supabase-js";
-import { supabase } from "@/lib/supabase";
 import type { UserProfile } from "@shared/schema";
 
 interface AuthContextType {
@@ -21,112 +20,73 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 
   // Fetch user profile from user_profiles table
   const fetchProfile = async (userId: string) => {
-    if (!supabase) {
+    const supabaseUrl = import.meta.env.VITE_SUPABASE_URL;
+    const supabaseKey = import.meta.env.VITE_SUPABASE_ANON_KEY;
+
+    if (!supabaseUrl || !supabaseKey) {
       console.warn("Supabase not configured");
       return null;
     }
 
     try {
-      const { data, error } = await supabase
-        .from("user_profiles")
-        .select("*")
-        .eq("id", userId)
-        .single();
+      const url = `${supabaseUrl}/rest/v1/user_profiles?id=eq.${userId}`;
+      const response = await fetch(url, {
+        method: 'GET',
+        headers: {
+          'apikey': supabaseKey,
+          'Authorization': `Bearer ${supabaseKey}`,
+        },
+      });
 
-      if (error) {
-        console.error("Error fetching profile:", error);
+      if (!response.ok) {
+        console.error("Error fetching profile");
         return null;
       }
 
-      return data as UserProfile;
+      const data = await response.json();
+      return data[0] as UserProfile || null;
     } catch (error) {
       console.error("Error fetching profile:", error);
       return null;
     }
   };
 
-  // Initialize auth state on mount
+  // Initialize auth state on mount  
   useEffect(() => {
-    let mounted = true;
-    let timeoutId: NodeJS.Timeout;
-
-    const initAuth = async () => {
-      if (!supabase) {
-        if (mounted) setLoading(false);
-        return;
-      }
-
-      try {
-        // Set a safety timeout - if auth doesn't complete in 5 seconds, stop loading
-        timeoutId = setTimeout(() => {
-          if (mounted) setLoading(false);
-        }, 5000);
-
-        // Get initial session with timeout protection
-        const { data: { session }, error } = await supabase.auth.getSession();
-        
-        if (!error && mounted) {
-          setUser(session?.user ?? null);
-          if (session?.user) {
-            const userProfile = await fetchProfile(session.user.id);
-            if (mounted) setProfile(userProfile);
-          }
-        }
-      } catch (error) {
-        // Silently handle errors - auth is not critical for viewing content
-      } finally {
-        clearTimeout(timeoutId);
-        if (mounted) setLoading(false);
-      }
-    };
-
-    initAuth();
-
-    // Listen for auth changes (only if supabase exists)
-    let subscription: any;
-    if (supabase) {
-      try {
-        const { data: { subscription: sub } } = supabase.auth.onAuthStateChange(
-          async (_event, session) => {
-            if (mounted) {
-              setUser(session?.user ?? null);
-              if (session?.user) {
-                const userProfile = await fetchProfile(session.user.id);
-                if (mounted) setProfile(userProfile);
-              } else {
-                setProfile(null);
-              }
-            }
-          }
-        );
-        subscription = sub;
-      } catch (error) {
-        // Silently handle auth listener setup errors
-      }
-    }
-
-    return () => {
-      mounted = false;
-      clearTimeout(timeoutId);
-      if (subscription) {
-        subscription.unsubscribe();
-      }
-    };
+    // For now, just set loading to false
+    // Auth state will be managed through login/signup actions
+    setLoading(false);
   }, []);
 
   const signUp = async (email: string, password: string) => {
-    if (!supabase) {
+    const supabaseUrl = import.meta.env.VITE_SUPABASE_URL;
+    const supabaseKey = import.meta.env.VITE_SUPABASE_ANON_KEY;
+
+    if (!supabaseUrl || !supabaseKey) {
       return { error: new Error("Supabase not configured") };
     }
 
     try {
-      const { error } = await supabase.auth.signUp({
-        email,
-        password,
+      const response = await fetch(`${supabaseUrl}/auth/v1/signup`, {
+        method: 'POST',
+        headers: {
+          'apikey': supabaseKey,
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({ email, password }),
       });
 
-      if (error) {
-        return { error };
+      const data = await response.json();
+
+      if (!response.ok) {
+        return { error: new Error(data.msg || data.error_description || 'Sign up failed') };
+      }
+
+      // Update local state
+      if (data.user) {
+        setUser(data.user);
+        const userProfile = await fetchProfile(data.user.id);
+        setProfile(userProfile);
       }
 
       return { error: null };
@@ -136,18 +96,34 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   };
 
   const signIn = async (email: string, password: string) => {
-    if (!supabase) {
+    const supabaseUrl = import.meta.env.VITE_SUPABASE_URL;
+    const supabaseKey = import.meta.env.VITE_SUPABASE_ANON_KEY;
+
+    if (!supabaseUrl || !supabaseKey) {
       return { error: new Error("Supabase not configured") };
     }
 
     try {
-      const { error } = await supabase.auth.signInWithPassword({
-        email,
-        password,
+      const response = await fetch(`${supabaseUrl}/auth/v1/token?grant_type=password`, {
+        method: 'POST',
+        headers: {
+          'apikey': supabaseKey,
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({ email, password }),
       });
 
-      if (error) {
-        return { error };
+      const data = await response.json();
+
+      if (!response.ok) {
+        return { error: new Error(data.msg || data.error_description || 'Login failed') };
+      }
+
+      // Update local state
+      if (data.user) {
+        setUser(data.user);
+        const userProfile = await fetchProfile(data.user.id);
+        setProfile(userProfile);
       }
 
       return { error: null };
@@ -157,10 +133,8 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   };
 
   const signOut = async () => {
-    if (!supabase) {
-      return;
-    }
-    await supabase.auth.signOut();
+    setUser(null);
+    setProfile(null);
   };
 
   const value = {
