@@ -19,19 +19,32 @@ export default function Questions() {
   const { data: supabaseQuestions, isLoading } = useQuery<IceBreakingQuestion[]>({
     queryKey: ['/api/ice-breaking-questions'],
     queryFn: async () => {
+      console.log('Query function executing, supabase:', !!supabase);
       if (!supabase) {
+        console.log('No supabase client, returning empty array');
         return [];
       }
+      console.log('Fetching from Supabase...');
       const { data, error } = await supabase
         .from('ice_breaking_questions')
         .select('*')
         .eq('is_active', true)
         .order('created_at', { ascending: true });
 
-      if (error) throw error;
+      if (error) {
+        console.error('Supabase error:', error);
+        throw error;
+      }
+      console.log('Supabase data received:', data?.length, 'questions');
       return data;
     },
     enabled: isSupabaseConfigured()
+  });
+
+  console.log('Questions page state:', { 
+    isSupabaseConfigured: isSupabaseConfigured(), 
+    isLoading, 
+    questionsCount: supabaseQuestions?.length 
   });
 
   const questions = isSupabaseConfigured() && supabaseQuestions 
