@@ -136,6 +136,8 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     signOut,
   };
 
+  console.log('AuthContext state:', { loading, hasUser: !!user, hasProfile: !!profile });
+
   return <AuthContext.Provider value={value}>{children}</AuthContext.Provider>;
 }
 

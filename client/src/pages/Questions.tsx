@@ -2,9 +2,7 @@ import { useState, useRef, useEffect } from "react";
 import { Link } from "wouter";
 import { Button } from "@/components/ui/button";
 import { ArrowLeft, ChevronLeft, ChevronRight } from "lucide-react";
-import { useQuery } from "@tanstack/react-query";
 import { supabase, isSupabaseConfigured } from "@/lib/supabase";
-import type { IceBreakingQuestion } from "@shared/schema";
 import { iceBreakingQuestions } from "@/data/questions";
 import logoWhite from "@assets/2 (1)_1759505350960.png";
 
@@ -15,46 +13,48 @@ export default function Questions() {
   const [isDragging, setIsDragging] = useState(false);
   const [offset, setOffset] = useState(0);
   const containerRef = useRef<HTMLDivElement>(null);
+  
+  const [questions, setQuestions] = useState<string[]>(iceBreakingQuestions);
+  const [isLoading, setIsLoading] = useState(false);
 
-  const { data: supabaseQuestions, isLoading, error } = useQuery<IceBreakingQuestion[]>({
-    queryKey: ['ice-breaking-questions'],
-    queryFn: async () => {
-      console.log('Query function executing, supabase:', !!supabase);
-      if (!supabase) {
-        console.log('No supabase client, returning empty array');
-        return [];
+  useEffect(() => {
+    const fetchQuestions = async () => {
+      if (!isSupabaseConfigured() || !supabase) {
+        console.log('Using fallback questions');
+        setQuestions(iceBreakingQuestions);
+        return;
       }
+
+      setIsLoading(true);
       console.log('Fetching from Supabase...');
-      const { data, error } = await supabase
-        .from('ice_breaking_questions')
-        .select('*')
-        .eq('is_active', true)
-        .order('created_at', { ascending: true });
+      
+      try {
+        const { data, error } = await supabase
+          .from('ice_breaking_questions')
+          .select('*')
+          .eq('is_active', true)
+          .order('created_at', { ascending: true });
 
-      if (error) {
-        console.error('Supabase error:', error);
-        throw error;
+        if (error) {
+          console.error('Supabase error:', error);
+          setQuestions(iceBreakingQuestions);
+        } else if (data && data.length > 0) {
+          console.log('Supabase data received:', data.length, 'questions');
+          setQuestions(data.map(q => q.question));
+        } else {
+          console.log('No data from Supabase, using fallback');
+          setQuestions(iceBreakingQuestions);
+        }
+      } catch (err) {
+        console.error('Error fetching questions:', err);
+        setQuestions(iceBreakingQuestions);
+      } finally {
+        setIsLoading(false);
       }
-      console.log('Supabase data received:', data?.length, 'questions');
-      return data;
-    },
-    enabled: isSupabaseConfigured(),
-    retry: false,
-    refetchOnMount: false,
-    refetchOnWindowFocus: false
-  });
+    };
 
-  console.log('Questions page state:', { 
-    isSupabaseConfigured: isSupabaseConfigured(), 
-    isLoading, 
-    questionsCount: supabaseQuestions?.length,
-    hasError: !!error,
-    error: error 
-  });
-
-  const questions = isSupabaseConfigured() && supabaseQuestions 
-    ? supabaseQuestions.map(q => q.question)
-    : iceBreakingQuestions;
+    fetchQuestions();
+  }, []);
 
   const minSwipeDistance = 50;
 
