@@ -16,8 +16,8 @@ export default function Questions() {
   const [offset, setOffset] = useState(0);
   const containerRef = useRef<HTMLDivElement>(null);
 
-  const { data: supabaseQuestions, isLoading } = useQuery<IceBreakingQuestion[]>({
-    queryKey: ['/api/ice-breaking-questions'],
+  const { data: supabaseQuestions, isLoading, error } = useQuery<IceBreakingQuestion[]>({
+    queryKey: ['ice-breaking-questions'],
     queryFn: async () => {
       console.log('Query function executing, supabase:', !!supabase);
       if (!supabase) {
@@ -38,13 +38,18 @@ export default function Questions() {
       console.log('Supabase data received:', data?.length, 'questions');
       return data;
     },
-    enabled: isSupabaseConfigured()
+    enabled: isSupabaseConfigured(),
+    retry: false,
+    refetchOnMount: false,
+    refetchOnWindowFocus: false
   });
 
   console.log('Questions page state:', { 
     isSupabaseConfigured: isSupabaseConfigured(), 
     isLoading, 
-    questionsCount: supabaseQuestions?.length 
+    questionsCount: supabaseQuestions?.length,
+    hasError: !!error,
+    error: error 
   });
 
   const questions = isSupabaseConfigured() && supabaseQuestions 
