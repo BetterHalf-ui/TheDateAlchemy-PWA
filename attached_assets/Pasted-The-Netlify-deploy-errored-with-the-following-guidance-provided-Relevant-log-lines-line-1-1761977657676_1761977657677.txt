@@ -1,0 +1,119 @@
+The Netlify deploy errored, with the following guidance provided:
+
+- Relevant log lines:
+  - [line 17](#L17) shows NODE_ENV is set to production (so devDependencies are not installed).
+  - [lines 56–57](#L56-L57) show the failing command and "vite: command not found".
+  - [line 63](#L63) shows the build exited with code 127.
+  - [line 83](#L83) summarizes the failure.
+
+Diagnosis
+- Error type: missing build tool (vite) at build time.
+- Root cause: vite is not available in the build environment because devDependencies were not installed (NODE_ENV=production prevented installing devDependencies). The build tries to run the global/local vite binary but it's not present, causing "vite: command not found".
+
+Solution (step-by-step)
+1) Verify vite is listed in package.json (and that package.json is committed)
+   - Open your repo package.json: https://github.com/BetterHalf-ui/TheDateAlchemy-PWA/blob/main/package.json
+   - Confirm "vite" appears (usually under "devDependencies"). If it is missing, add it:
+     - Locally: 
+       ```bash
+       npm install -D vite
+       git add package.json package-lock.json
+       git commit -m "chore: add vite"
+       git push
+       ```
+     - Or add manually to package.json and commit.
+
+2) Ensure devDependencies (including vite) are installed during the Netlify build. You have two safe options—pick one:
+
+   Option A — Install devDependencies during the build (recommended)
+   - Tell Netlify to install devDependencies by adding the npm flag. In Netlify UI: Site settings → Build & deploy → Environment → New variable:
+     - Key: NPM_FLAGS
+     - Value: --include=dev
+   - Or change your build command to explicitly install devDependencies before building. Example netlify.toml snippet:
+     ```toml
+     [build]
+       command = "npm ci --include=dev && npm run build"
+       publish = "dist/public"
+     ```
+   - This ensures local node_modules/.bin/vite exists when the build runs.
+
+   Option B — Move vite to dependencies
+   - If you prefer not to install devDependencies in production, move vite to regular dependencies so it's available during the build:
+     ```bash
+     npm install vite --save
+     git add package.json package-lock.json
+     git commit -m "chore: move vite to dependencies"
+     git push
+     ```
+   - Note: this increases production install size; Option A is generally preferable for build-only tools.
+
+3) After applying one of the above fixes, redeploy on Netlify.
+
+Notes / pitfalls
+- Do NOT try to fix this by changing NODE_ENV to a non-production value — Netlify sets NODE_ENV for builds and changing it can have side effects. Use NPM_FLAGS or explicit install as shown.
+- If you use Yarn or PNPM, use the equivalent flags (e.g., yarn install --frozen-lockfile --mode=install-if-needed or pnpm install --prod=false).
+- If you need to change Node versions, follow Netlify docs for changing Node versions: https://docs.netlify.com/configure-builds/manage-dependencies/#node-js-and-javascript
+
+This will make the vite binary available during the build and resolve the "vite: command not found" failure.
+
+The relevant error logs are:
+
+Line 0: Waiting for other deploys from your team to complete. Check the queue: https://app.netlify.com/teams/contact-j3milvg/builds
+Line 1: build-image version: 2cae3ca905d202880257fd373e72986bf1b632fd (noble)
+Line 2: buildbot version: 0d1bfc5e5e409698057f2f06d53a52fa43dbfeba
+Line 3: Building without cache
+Line 4: Starting to prepare the repo for build
+Line 5: No cached dependencies found. Cloning fresh repo
+Line 6: git clone --filter=blob:none https://github.com/BetterHalf-ui/TheDateAlchemy-PWA
+Line 7: Preparing Git Reference refs/heads/main
+Line 8: Failed during stage 'building site': Build script returned non-zero exit code: 2
+Line 9: Custom publish path detected. Proceeding with the specified path: 'dist/public'
+Line 10: Custom build command detected. Proceeding with the specified command: 'vite build'
+Line 11: Starting to install dependencies
+Line 12: v22.21.1 is already installed.
+Line 13: Now using node v22.21.1 (npm v10.9.4)
+Line 14: Enabling Node.js Corepack
+Line 15: Started restoring cached build plugins
+Line 16: Finished restoring cached build plugins
+Line 17: WARNING: The environment variable 'NODE_ENV' is set to 'production'. Any 'devDependencies' in package.json will not be installed
+Line 18: Started restoring cached corepack dependencies
+Line 49: [36m[1m​[22m[39m
+Line 50: [36m[1m❯ Context[22m[39m
+Line 51:   production
+Line 52: [96m[1m​[22m[39m
+Line 53: [96m[1mbuild.command from netlify.toml                               [22m[39m
+Line 54: [96m[1m────────────────────────────────────────────────────────────────[22m[39m
+Line 55: ​
+Line 56: [36m$ vite build[39m
+Line 57: bash: line 1: vite: command not found
+Line 58: [91m[1m​[22m[39m
+Line 59: [91m[1m"build.command" failed                                        [22m[39m
+Line 60: [91m[1m────────────────────────────────────────────────────────────────[22m[39m
+Line 61: ​
+Line 62:   [31m[1mError message[22m[39m
+Line 63:   Command failed with exit code 127: vite build
+Line 64: ​
+Line 65:   [31m[1mError location[22m[39m
+Line 66:   In build.command from netlify.toml:
+Line 67:   vite build
+Line 68: ​
+Line 69:   [31m[1mResolved config[22m[39m
+Line 70:   build:
+Line 71:     command: vite build
+Line 72:     commandOrigin: config
+Line 73:     environment:
+Line 74:       - NODE_ENV
+Line 75:       - SUPABASE_ANON_KEY
+Line 76:       - SUPABASE_SERVICE_ROLE_KEY
+Line 77:       - SUPABASE_URL
+Line 78:       - USE_SUPABASE
+Line 79:     publish: /opt/build/repo/dist/public
+Line 80:     publishOrigin: config
+Line 81:   redirects:
+Line 82:     - from: /*
+      status: 200
+      to: /index.html
+  redirectsOrigin: config
+Line 83: Build failed due to a user error: Build script returned non-zero exit code: 2
+Line 84: Failing build: Failed to build site
+Line 85: Finished processing build request in 11.759s
