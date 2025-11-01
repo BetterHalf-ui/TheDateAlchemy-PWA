@@ -52,43 +52,31 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 
     const initAuth = async () => {
       if (!supabase) {
-        console.log('No Supabase client, skipping auth');
         if (mounted) setLoading(false);
         return;
       }
 
       try {
-        console.log('Initializing auth...');
-        
         // Set a safety timeout - if auth doesn't complete in 5 seconds, stop loading
         timeoutId = setTimeout(() => {
-          console.warn('Auth initialization timeout - continuing anyway');
           if (mounted) setLoading(false);
         }, 5000);
 
         // Get initial session with timeout protection
         const { data: { session }, error } = await supabase.auth.getSession();
         
-        if (error) {
-          console.error('Error getting session:', error);
-        } else {
-          console.log('Session retrieved:', !!session);
-          if (mounted) {
-            setUser(session?.user ?? null);
-            if (session?.user) {
-              const userProfile = await fetchProfile(session.user.id);
-              if (mounted) setProfile(userProfile);
-            }
+        if (!error && mounted) {
+          setUser(session?.user ?? null);
+          if (session?.user) {
+            const userProfile = await fetchProfile(session.user.id);
+            if (mounted) setProfile(userProfile);
           }
         }
       } catch (error) {
-        console.error('Auth initialization error:', error);
+        // Silently handle errors - auth is not critical for viewing content
       } finally {
         clearTimeout(timeoutId);
-        if (mounted) {
-          console.log('Auth initialization complete');
-          setLoading(false);
-        }
+        if (mounted) setLoading(false);
       }
     };
 
@@ -100,7 +88,6 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       try {
         const { data: { subscription: sub } } = supabase.auth.onAuthStateChange(
           async (_event, session) => {
-            console.log('Auth state changed:', _event);
             if (mounted) {
               setUser(session?.user ?? null);
               if (session?.user) {
@@ -114,7 +101,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         );
         subscription = sub;
       } catch (error) {
-        console.error('Error setting up auth listener:', error);
+        // Silently handle auth listener setup errors
       }
     }
 
@@ -184,8 +171,6 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     signIn,
     signOut,
   };
-
-  console.log('AuthContext state:', { loading, hasUser: !!user, hasProfile: !!profile });
 
   return <AuthContext.Provider value={value}>{children}</AuthContext.Provider>;
 }

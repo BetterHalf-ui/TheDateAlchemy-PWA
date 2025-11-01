@@ -20,13 +20,11 @@ export default function Questions() {
   useEffect(() => {
     const fetchQuestions = async () => {
       if (!isSupabaseConfigured() || !supabase) {
-        console.log('Using fallback questions');
         setQuestions(iceBreakingQuestions);
         return;
       }
 
       setIsLoading(true);
-      console.log('Fetching from Supabase...');
       
       try {
         const { data, error } = await supabase
@@ -35,18 +33,12 @@ export default function Questions() {
           .eq('is_active', true)
           .order('created_at', { ascending: true });
 
-        if (error) {
-          console.error('Supabase error:', error);
+        if (error || !data || data.length === 0) {
           setQuestions(iceBreakingQuestions);
-        } else if (data && data.length > 0) {
-          console.log('Supabase data received:', data.length, 'questions');
-          setQuestions(data.map(q => q.question));
         } else {
-          console.log('No data from Supabase, using fallback');
-          setQuestions(iceBreakingQuestions);
+          setQuestions(data.map(q => q.question));
         }
       } catch (err) {
-        console.error('Error fetching questions:', err);
         setQuestions(iceBreakingQuestions);
       } finally {
         setIsLoading(false);
