@@ -41,9 +41,9 @@ Preferred communication style: Simple, everyday language.
 
 **Key Pages:**
 1. **Home (/)**: Full-viewport hero layout with background image, logo, and two CTA buttons
-2. **Auth (/auth)**: Centered card layout for authentication (sign up/log in), redirects to Dashboard
+2. **Auth (/auth)**: Centered card layout with Supabase authentication (email/password sign up and login)
 3. **Socials (/socials)**: Grid of tiles for Singles Socials features (ice-breaking questions, events)
-4. **Dashboard (/dashboard)**: 4-tile grid for The Date Alchemy authenticated features, identical layout to Socials
+4. **Dashboard (/dashboard)**: Protected 4-tile grid for approved users only, requires authentication and admin approval
 5. **Questions (/questions)**: Swipeable carousel of ice-breaking questions with touch gesture support, fetches from Supabase
 
 ### Backend Architecture
@@ -66,9 +66,12 @@ Preferred communication style: Simple, everyday language.
 - Designed to be swapped with database implementations (PostgreSQL planned)
 - User management methods: `getUser()`, `getUserByUsername()`, `createUser()`
 
-**Session Management:**
-- Prepared for `connect-pg-simple` session store (PostgreSQL-based sessions)
-- Cookie-based session handling
+**Authentication:**
+- **Supabase Auth** for user authentication (email/password)
+- **AuthContext** provider for global auth state management
+- **ProtectedRoute** component for route-level access control
+- Session persistence with automatic token refresh
+- Manual approval workflow for new user registrations
 
 ### Data Storage
 
@@ -86,23 +89,27 @@ Preferred communication style: Simple, everyday language.
 **Database Schema:**
 - **Drizzle ORM** configured for PostgreSQL schema definitions
 - Current schema defines:
-  - `users` table (for future authentication):
-    - `id`: UUID primary key (auto-generated)
-    - `username`: Unique text field
-    - `password`: Text field for hashed passwords
+  - `user_profiles` table (active in Supabase):
+    - `id`: UUID primary key (references auth.users)
+    - `email`: Text field for user email
+    - `is_approved`: Boolean flag for manual approval (default: false)
+    - `created_at`: Timestamp for profile creation
+    - `updated_at`: Timestamp for last update
   - `ice_breaking_questions` table (active in Supabase):
     - `id`: UUID primary key (auto-generated)
     - `question`: Text field
     - `is_active`: Boolean (default: true)
     - `created_at`: Timestamp (default: now)
 - Schema validation using **Drizzle-Zod** for runtime type checking
+- Database triggers automatically create user profiles on signup
 
 **Current State:**
+- Supabase Auth fully integrated with email/password authentication
+- User profiles created automatically with manual approval workflow
+- Dashboard protected by authentication and approval status
 - Supabase database actively serving ice breaking questions
 - Questions page fetches real-time data from Supabase
 - Both Singles Socials and Dashboard share the same question data source
-- Local development uses in-memory storage for users
-- Authentication system UI ready, backend implementation pending
 
 ### External Dependencies
 
@@ -171,9 +178,20 @@ Preferred communication style: Simple, everyday language.
 - **Backend**: Replit-hosted Express server (for future API features)
 
 **Integrated Services:**
-- **Supabase**: Production database for ice breaking questions (active)
+- **Supabase Auth**: Email/password authentication with session management
+- **Supabase Database**: Production PostgreSQL database
+  - `user_profiles` table with manual approval workflow
+  - `ice_breaking_questions` table with 107 questions
+  - Row Level Security (RLS) policies configured
+  - Database triggers for automatic profile creation
+
+**Authentication Workflow:**
+1. User signs up with email/password via Auth page
+2. Supabase creates auth user and triggers profile creation
+3. User profile created with `is_approved: false`
+4. Admin approves user by setting `is_approved: true` in Supabase dashboard
+5. Approved users gain access to protected Dashboard content
 
 **Not Yet Integrated:**
-- Full authentication system (UI ready, backend implementation pending)
-- Session management (dependencies installed but not implemented)
 - Additional API routes (framework ready, endpoints to be defined)
+- Advanced profile fields (preferences, matches, etc.)

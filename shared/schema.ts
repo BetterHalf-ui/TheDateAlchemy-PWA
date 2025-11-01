@@ -31,3 +31,19 @@ export const insertIceBreakingQuestionSchema = createInsertSchema(iceBreakingQue
 
 export type InsertIceBreakingQuestion = z.infer<typeof insertIceBreakingQuestionSchema>;
 export type IceBreakingQuestion = typeof iceBreakingQuestions.$inferSelect;
+
+export const userProfiles = pgTable("user_profiles", {
+  id: uuid("id").primaryKey(),
+  email: text("email").notNull(),
+  isApproved: boolean("is_approved").notNull().default(false),
+  createdAt: timestamp("created_at").notNull().defaultNow(),
+  updatedAt: timestamp("updated_at").notNull().defaultNow(),
+});
+
+export const insertUserProfileSchema = createInsertSchema(userProfiles).omit({
+  createdAt: true,
+  updatedAt: true,
+});
+
+export type InsertUserProfile = z.infer<typeof insertUserProfileSchema>;
+export type UserProfile = typeof userProfiles.$inferSelect;

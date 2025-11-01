@@ -4,22 +4,76 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
-import { ArrowLeft } from "lucide-react";
+import { ArrowLeft, Loader2 } from "lucide-react";
+import { useAuth } from "@/contexts/AuthContext";
+import { useToast } from "@/hooks/use-toast";
 import logoOrange from "@assets/1 (1)_1759505350950.png";
 
 export default function Auth() {
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
+  const [isSigningUp, setIsSigningUp] = useState(false);
+  const [isLoggingIn, setIsLoggingIn] = useState(false);
   const [, setLocation] = useLocation();
+  const { signUp, signIn } = useAuth();
+  const { toast } = useToast();
 
-  const handleSignUp = () => {
-    console.log("Sign Up triggered", { email, password });
-    setLocation("/dashboard");
+  const handleSignUp = async () => {
+    if (!email || !password) {
+      toast({
+        title: "Missing information",
+        description: "Please enter both email and password",
+        variant: "destructive",
+      });
+      return;
+    }
+
+    setIsSigningUp(true);
+    const { error } = await signUp(email, password);
+    setIsSigningUp(false);
+
+    if (error) {
+      toast({
+        title: "Sign up failed",
+        description: error.message,
+        variant: "destructive",
+      });
+    } else {
+      toast({
+        title: "Sign up successful!",
+        description: "Please wait for admin approval to access the dashboard.",
+      });
+      setLocation("/dashboard");
+    }
   };
 
-  const handleLogIn = () => {
-    console.log("Log In triggered", { email, password });
-    setLocation("/dashboard");
+  const handleLogIn = async () => {
+    if (!email || !password) {
+      toast({
+        title: "Missing information",
+        description: "Please enter both email and password",
+        variant: "destructive",
+      });
+      return;
+    }
+
+    setIsLoggingIn(true);
+    const { error } = await signIn(email, password);
+    setIsLoggingIn(false);
+
+    if (error) {
+      toast({
+        title: "Login failed",
+        description: error.message,
+        variant: "destructive",
+      });
+    } else {
+      toast({
+        title: "Login successful!",
+        description: "Welcome back!",
+      });
+      setLocation("/dashboard");
+    }
   };
 
   return (
@@ -75,16 +129,20 @@ export default function Auth() {
               <Button 
                 className="flex-1 hover-elevate active-elevate-2"
                 onClick={handleSignUp}
+                disabled={isSigningUp || isLoggingIn}
                 data-testid="button-signup"
               >
+                {isSigningUp && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
                 Sign Up
               </Button>
               <Button 
                 variant="outline"
                 className="flex-1 hover-elevate active-elevate-2"
                 onClick={handleLogIn}
+                disabled={isSigningUp || isLoggingIn}
                 data-testid="button-login"
               >
+                {isLoggingIn && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
                 Log In
               </Button>
             </div>
