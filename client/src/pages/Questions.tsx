@@ -21,6 +21,7 @@ export default function Questions() {
   useEffect(() => {
     const fetchQuestions = async () => {
       if (!isSupabaseConfigured() || !supabase) {
+        console.log('Supabase not configured, using fallback questions');
         setQuestions(iceBreakingQuestions);
         return;
       }
@@ -28,28 +29,46 @@ export default function Questions() {
       setIsLoading(true);
       setError(null);
       
+      const timeoutId = setTimeout(() => {
+        console.warn('⚠️ Supabase query timeout after 10 seconds');
+        setError('Request timed out. Using offline questions.');
+        setQuestions(iceBreakingQuestions);
+        setIsLoading(false);
+      }, 10000);
+      
       try {
-        console.log('Fetching questions from Supabase...');
+        console.log('📡 Making Supabase request...');
+        const startTime = Date.now();
+        
         const { data, error } = await supabase
           .from('ice_breaking_questions')
           .select('*')
           .eq('is_active', true)
           .order('created_at', { ascending: true });
 
+        clearTimeout(timeoutId);
+        const duration = Date.now() - startTime;
+        console.log(`⏱️ Supabase request completed in ${duration}ms`);
+
         if (error) {
-          console.error('Supabase error:', error);
+          console.error('❌ Supabase error:', error);
           setError('Unable to load questions from database. Using offline questions.');
           setQuestions(iceBreakingQuestions);
         } else if (!data || data.length === 0) {
-          console.warn('No questions found in database');
+          console.warn('⚠️ No questions found in database');
           setError('No questions available. Using offline questions.');
           setQuestions(iceBreakingQuestions);
         } else {
-          console.log(`Loaded ${data.length} questions from Supabase`);
+          console.log(`✅ Loaded ${data.length} questions from Supabase`);
           setQuestions(data.map(q => q.question));
         }
       } catch (err) {
-        console.error('Failed to fetch questions:', err);
+        clearTimeout(timeoutId);
+        console.error('❌ Failed to fetch questions:', err);
+        console.error('Error details:', {
+          message: err instanceof Error ? err.message : 'Unknown error',
+          stack: err instanceof Error ? err.stack : undefined,
+        });
         setError('Connection error. Using offline questions.');
         setQuestions(iceBreakingQuestions);
       } finally {

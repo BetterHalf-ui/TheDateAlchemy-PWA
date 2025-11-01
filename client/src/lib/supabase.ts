@@ -17,8 +17,27 @@ if (!supabaseUrl || !supabaseAnonKey) {
   });
 }
 
-export const supabase = supabaseUrl && supabaseAnonKey 
-  ? createClient(supabaseUrl, supabaseAnonKey)
-  : null;
+let supabaseClient = null;
+let initError = null;
 
+try {
+  if (supabaseUrl && supabaseAnonKey) {
+    supabaseClient = createClient(supabaseUrl, supabaseAnonKey, {
+      auth: {
+        persistSession: true,
+        autoRefreshToken: true,
+      },
+      global: {
+        fetch: fetch.bind(globalThis),
+      },
+    });
+    console.log('✅ Supabase client initialized successfully');
+  }
+} catch (error) {
+  initError = error;
+  console.error('❌ Failed to initialize Supabase client:', error);
+}
+
+export const supabase = supabaseClient;
 export const isSupabaseConfigured = () => supabase !== null;
+export const getSupabaseInitError = () => initError;
