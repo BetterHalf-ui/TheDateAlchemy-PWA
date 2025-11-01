@@ -16,6 +16,7 @@ export default function Questions() {
   
   const [questions, setQuestions] = useState<string[]>(iceBreakingQuestions);
   const [isLoading, setIsLoading] = useState(false);
+  const [error, setError] = useState<string | null>(null);
 
   useEffect(() => {
     const fetchQuestions = async () => {
@@ -25,20 +26,31 @@ export default function Questions() {
       }
 
       setIsLoading(true);
+      setError(null);
       
       try {
+        console.log('Fetching questions from Supabase...');
         const { data, error } = await supabase
           .from('ice_breaking_questions')
           .select('*')
           .eq('is_active', true)
           .order('created_at', { ascending: true });
 
-        if (error || !data || data.length === 0) {
+        if (error) {
+          console.error('Supabase error:', error);
+          setError('Unable to load questions from database. Using offline questions.');
+          setQuestions(iceBreakingQuestions);
+        } else if (!data || data.length === 0) {
+          console.warn('No questions found in database');
+          setError('No questions available. Using offline questions.');
           setQuestions(iceBreakingQuestions);
         } else {
+          console.log(`Loaded ${data.length} questions from Supabase`);
           setQuestions(data.map(q => q.question));
         }
       } catch (err) {
+        console.error('Failed to fetch questions:', err);
+        setError('Connection error. Using offline questions.');
         setQuestions(iceBreakingQuestions);
       } finally {
         setIsLoading(false);
@@ -124,6 +136,12 @@ export default function Questions() {
         </Link>
         <img src={logoWhite} alt="The Date Alchemy" className="h-8 w-auto" data-testid="img-logo-questions" />
       </div>
+
+      {error && (
+        <div className="mx-4 mt-4 p-3 bg-amber-500/10 border border-amber-500/20 rounded-lg" data-testid="text-error">
+          <p className="text-amber-200 text-sm text-center">{error}</p>
+        </div>
+      )}
 
       <div className="flex-1 flex flex-col items-center justify-center px-6 py-12 relative overflow-hidden">
         <div 

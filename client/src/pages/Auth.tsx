@@ -29,21 +29,34 @@ export default function Auth() {
     }
 
     setIsSigningUp(true);
-    const { error } = await signUp(email, password);
-    setIsSigningUp(false);
-
-    if (error) {
+    try {
+      console.log('Attempting sign up...');
+      const { error } = await signUp(email, password);
+      
+      if (error) {
+        console.error('Sign up error:', error);
+        toast({
+          title: "Sign up failed",
+          description: error.message || "Unable to create account. Please try again.",
+          variant: "destructive",
+        });
+      } else {
+        console.log('Sign up successful');
+        toast({
+          title: "Sign up successful!",
+          description: "Please wait for admin approval to access the dashboard.",
+        });
+        setLocation("/dashboard");
+      }
+    } catch (err) {
+      console.error('Unexpected error during sign up:', err);
       toast({
         title: "Sign up failed",
-        description: error.message,
+        description: "An unexpected error occurred. Please try again.",
         variant: "destructive",
       });
-    } else {
-      toast({
-        title: "Sign up successful!",
-        description: "Please wait for admin approval to access the dashboard.",
-      });
-      setLocation("/dashboard");
+    } finally {
+      setIsSigningUp(false);
     }
   };
 
@@ -58,21 +71,34 @@ export default function Auth() {
     }
 
     setIsLoggingIn(true);
-    const { error } = await signIn(email, password);
-    setIsLoggingIn(false);
-
-    if (error) {
+    try {
+      console.log('Attempting login...');
+      const { error } = await signIn(email, password);
+      
+      if (error) {
+        console.error('Login error:', error);
+        toast({
+          title: "Login failed",
+          description: error.message || "Unable to login. Please check your credentials.",
+          variant: "destructive",
+        });
+      } else {
+        console.log('Login successful');
+        toast({
+          title: "Login successful!",
+          description: "Welcome back!",
+        });
+        setLocation("/dashboard");
+      }
+    } catch (err) {
+      console.error('Unexpected error during login:', err);
       toast({
         title: "Login failed",
-        description: error.message,
+        description: "An unexpected error occurred. Please try again.",
         variant: "destructive",
       });
-    } else {
-      toast({
-        title: "Login successful!",
-        description: "Welcome back!",
-      });
-      setLocation("/dashboard");
+    } finally {
+      setIsLoggingIn(false);
     }
   };
 
